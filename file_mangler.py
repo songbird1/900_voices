@@ -5,6 +5,7 @@ Can be called directly, or from another python file
 '''
 
 import sys
+import re 
 
 soundfile = ""
 
@@ -29,7 +30,6 @@ def strip_out_header(content):
     position = content.find(target_string) + len(target_string)
     if position != -1:  # The target string was found
         new_content = content[position:]
-        print("found it")
     else:
         new_content = content  # Target string not found; no modification
 
@@ -56,7 +56,6 @@ def strip_out_footer(content):
     position = content.find(target_string) + len(target_string)
     if position != -1:  # The target string was found
         new_content = content[:content.index(target_string)]
-        print("found it")
     else:
         new_content = content  # Target string not found; no modification
 
@@ -103,10 +102,20 @@ def process_file(source, destination):
     for old_text, new_text in replacements.items():
         content = content.replace(old_text, new_text)
 
-    # Step 7: Replace filename with soundfile, doesn't want to work in def?
+    # # Step 7: strip out a couple of awkward lines that we don't need:
+    # </p><p time="28030" data-tc="00:00:28,<span class="speaker,Speaker 1 ,20240112_1243.wav
+    # <span class="timecode,[00:00:28] ,20240112_1243.wav
+    #
+    # Note: this leaves a blank lines in output. Does this matter?
+    test = r'</p><p time="\d+" data-tc="\d+:\d+:\d+,<span class="speaker,Speaker \d+ ,filename'
+    content = re.sub(test, '', content)
+    test = r'<span class="timecode,\[\d+:\d+:\d+\] ,filename'
+    content = re.sub(test, '',content) 
+
+    # Step 8: Replace filename with soundfile, doesn't want to work in def?
     content = content.replace("filename",soundfile)
 
-    # Step 8: Write the modified content back to the file
+    # Step 9: Write the modified content back to the file
     with open(destination, 'w', encoding='utf-8') as file:
         file.write(content)
 
