@@ -18,6 +18,25 @@ def store_sound_file_name(content):
     global soundfile
     soundfile = content[content.index(start)+len(start):content.index(end)]
 
+def preprocess_substitutions(content):
+    '''
+    Source files contain some anomalies, this uses regexp to
+    try to catch them and make substitutions
+    '''
+    # Substitute the test string because the timecode at the start isn't always zero
+    test = r'class="timecode">\[\d+:\d+:\d+\] </span>'
+    content = re.sub(test, 'class="timecode">[00:00:00] </span>',content)
+
+    # Substitute 0 in a line without a duration, often duplicate start time
+    test = r'<span class="word" data-m="\d+">'
+    content = re.sub(test, '<span class="word" data-m="0" data-d="0">',content)
+
+    # Substitute a blank for any number of spaces trailing a comma in the word
+    test = r',\s+</span>'
+    content = re.sub(test, ' </span>',content)
+
+    return content  
+
 def strip_out_header(content):
     '''
     Source files contain a large area of redundant data.
@@ -73,7 +92,9 @@ def process_file(source, destination):
 
     # Define find-and-replace pairs
     replacements = {
+        r'"> </span>': '">NULL</span>', # catch an empty span tag
         r'<span class="word" data-m="': ',',
+        r'<span class="word highlight" data-m="': ',',
         r'" data-d="': ',',
         r'">' : ',',
         r', </span>': ',filename\n', # catch a word with trailing comma
@@ -89,20 +110,23 @@ def process_file(source, destination):
     # Step 2: store sound file name
     store_sound_file_name(content)
 
-    # Step 3: remove header
+    # Step 3: preprocess substitutions
+    content = preprocess_substitutions(content)
+
+    # Step 4: remove header
     content = strip_out_header(content)
 
-    # Step 4: remove footer
+    # Step 5: remove footer
     content = strip_out_footer(content)
 
-    # Step 5: add new header for csv parser
+    # Step 6: add new header for csv parser
     content = add_new_header(content)
 
-    # Step 6: Perform all find-and-replace operations
+    # Step 7: Perform all find-and-replace operations
     for old_text, new_text in replacements.items():
         content = content.replace(old_text, new_text)
 
-    # # Step 7: strip out a couple of awkward lines that we don't need:
+    # # Step 8: strip out a couple of awkward lines that we don't need:
     # </p><p time="28030" data-tc="00:00:28,<span class="speaker,Speaker 1 ,20240112_1243.wav
     # <span class="timecode,[00:00:28] ,20240112_1243.wav
     #
@@ -112,10 +136,10 @@ def process_file(source, destination):
     test = r'<span class="timecode,\[\d+:\d+:\d+\] ,filename'
     content = re.sub(test, '',content) 
 
-    # Step 8: Replace filename with soundfile, doesn't want to work in def?
+    # Step 9: Replace filename with soundfile, doesn't want to work in def?
     content = content.replace("filename",soundfile)
 
-    # Step 9: Write the modified content back to the file
+    # Step 10: Write the modified content back to the file
     with open(destination, 'w', encoding='utf-8') as file:
         file.write(content)
 
