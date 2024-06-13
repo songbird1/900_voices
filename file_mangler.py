@@ -80,6 +80,43 @@ def strip_out_footer(content):
 
     return new_content
 
+def remove_speaker1(content):
+    '''
+    Speaker1 is the interviewer, their words shouldn't be in the final
+    output.
+    Find all elements from 
+    <span class="speaker">Speaker 1 </span><span class="timecode">[00:00:18] </span> 
+    to 
+    <span class="speaker">Speaker 2 </span><span class="timecode">[00:01:02] </span>
+    and remove them.
+    Note: other logic strips out 'Speaker 1' etc etc. This fn just has to strip out
+    the words between them.
+    '''
+    import io 
+    new_content = ""
+    buffer_file = io.StringIO(content) 
+    keep_line = True
+
+    # spin over all lines in the file, searching for 'Speaker 1', clear the keep_line 
+    # flag until 'Speaker 2' appears. 
+    # What happens if Speaker 1 is the last speaker, are there other items in the file 
+    # that will be lost? Doesn't seem to matter, the text afterwards isn't required.
+    
+    # copy every line of 'content' and copy it into 'new_content' unless
+    # it is Speaker 1
+    for line in buffer_file:
+        # search for any s & S version of speaker. Something do to with 
+        # editor find and replace? Requested by Zoe.
+        if "speaker,Speaker 1" in line or "speaker,speaker 1" in line:
+            keep_line = False
+        elif "speaker,Speaker" in line:
+            keep_line = True 
+
+        if keep_line:
+            new_content += line 
+
+    return new_content 
+
 
 def process_file(source, destination):
     '''
@@ -103,28 +140,31 @@ def process_file(source, destination):
         # Add as many pairs as needed
     }
 
-    # Step 1: Read the file content into memory
+    # Read the file content into memory
     with open(source, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Step 2: store sound file name
+    # store sound file name
     store_sound_file_name(content)
 
-    # Step 3: preprocess substitutions
+    # preprocess substitutions
     content = preprocess_substitutions(content)
 
-    # Step 4: remove header
+    # remove header
     content = strip_out_header(content)
 
-    # Step 5: remove footer
+    # remove footer
     content = strip_out_footer(content)
 
-    # Step 6: add new header for csv parser
+    # add new header for csv parser
     content = add_new_header(content)
 
-    # Step 7: Perform all find-and-replace operations
+    # Perform all find-and-replace operations
     for old_text, new_text in replacements.items():
         content = content.replace(old_text, new_text)
+
+    # remove all traces of zoe
+    content = remove_speaker1(content)
 
     # # Step 8: strip out a couple of awkward lines that we don't need:
     # </p><p time="28030" data-tc="00:00:28,<span class="speaker,Speaker 1 ,20240112_1243.wav
